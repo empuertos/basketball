@@ -14,6 +14,10 @@
       margin: 0;
       padding: 20px;
     }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
     video {
       width: 100%;
       max-width: 800px;
@@ -27,8 +31,8 @@
   <video id="video" controls autoplay></video>
 
   <script>
-    // Palitan <username> ng Cloudflare account mo
-    const m3u8Url = "https://m3u8-proxy.basketball.workers.dev//?url=" +
+    // Final worker URL + target m3u8
+    const m3u8Url = "https://m3u8-proxy.basketball.workers.dev/?url=" +
                     encodeURIComponent("http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8");
 
     const video = document.getElementById('video');
@@ -39,6 +43,8 @@
       hls.attachMedia(video);
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = m3u8Url;
+    } else {
+      alert("Your browser does not support M3U8 playback.");
     }
   </script>
 </body>
