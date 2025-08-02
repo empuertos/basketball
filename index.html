@@ -21,7 +21,6 @@
       display: grid;
       grid-template-columns: 2fr 1fr;
       gap: 24px;
-      box-sizing: border-box;
       min-height: 100vh;
       align-items: stretch;
     }
@@ -45,13 +44,13 @@
       align-items: center;
       justify-content: center;
     }
-    .video-inner iframe, 
     .video-inner video {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       border: none;
+      background: black;
     }
     #datetime {
       position: fixed;
@@ -93,14 +92,14 @@
   </style>
 </head>
 <body>
-  <!-- Date & Time Philippines (12-hour) -->
+  <!-- Date & Time -->
   <div id="datetime">
     <div id="date">--</div>
     <div id="time">--</div>
   </div>
 
   <div class="container">
-    <!-- Left: Video -->
+    <!-- Video -->
     <div class="video-wrapper">
       <div class="flex justify-between items-center">
         <h2 class="text-xl font-semibold">Basketball Live Stream</h2>
@@ -112,7 +111,7 @@
       </div>
     </div>
 
-    <!-- Right: Chat -->
+    <!-- Chat -->
     <div class="chat-card">
       <h3 class="font-semibold mb-2">Live Chat (Viewers)</h3>
       <div id="chatWindow" class="chat-window"></div>
@@ -127,14 +126,14 @@
   <script>
     // ===== CONFIG =====
     const videoSource = 'https://fhlsport121.fgs37g8.xyz/token-cEItm7GWe6WGu2cokPY6kWmBlMCA0SHjOiasxvdPEzP65OPKHUFdD44tqBxJWE1JBD6ExjNnlg%3D%3Da/cfall/s2001/v3b/5no6n3oqnUE0pQbiY3EmAmphZ3umqT0ho25y/super/3x_611404.m3u8';
-    const autoRefreshInterval = 300; // seconds between auto-refresh (set to 0 to disable)
+    const errorRetryDelay = 5000; // milliseconds (5 seconds)
+    let isRefreshing = false;
     // ==================
 
     function updateDateTime() {
       const now = new Date();
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-      const manilaOffsetMs = 8 * 60 * 60 * 1000;
-      const manila = new Date(utc + manilaOffsetMs);
+      const manila = new Date(utc + (8 * 60 * 60 * 1000));
       document.getElementById('date').textContent = manila.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       document.getElementById('time').textContent = manila.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     }
@@ -146,79 +145,34 @@
 
     function loadVideo(source) {
       statusText.textContent = 'Loading...';
-      if (source.startsWith('<iframe') || source.startsWith('<div') || source.startsWith('<script')) {
-        embedContent.innerHTML = source;
-      } else if (/^https?:\/\//.test(source)) {
-        if (source.endsWith('.m3u8')) {
-          embedContent.innerHTML = `<video id="hlsPlayer" controls autoplay muted></video>`;
-          const video = document.getElementById('hlsPlayer');
-          video.addEventListener('error', () => {
-            console.warn('Video error detected, refreshing...');
-            refreshVideo();
-          });
-          if (Hls.isSupported()) {
-            const hls = new Hls();
-            hls.loadSource(source);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.ERROR, function () {
-              console.warn('HLS.js error, refreshing...');
-              refreshVideo();
-            });
-          } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = source;
-          }
-        } else if (/\.(mp4|webm|ogg)$/i.test(source)) {
-          embedContent.innerHTML = `<video src="${source}" controls autoplay muted></video>`;
-          const video = embedContent.querySelector('video');
-          video.addEventListener('error', () => {
-            console.warn('Video error detected, refreshing...');
-            refreshVideo();
-          });
-        } else {
-          embedContent.innerHTML = `<iframe src="${source}" allowfullscreen scrolling="no"></iframe>`;
-          // If iframe fails to load
-          setTimeout(() => {
-            const iframe = embedContent.querySelector('iframe');
-            if (!iframe || iframe.contentWindow === null) {
-              console.warn('Iframe load issue, refreshing...');
-              refreshVideo();
-            }
-          }, 5000);
-        }
-      } else {
-        embedContent.textContent = source;
+      embedContent.innerHTML = `<video id="hlsPlayer" controls autoplay muted></video>`;
+      const video = document.getElementById('hlsPlayer');
+
+      video.addEventListener('error', handleVideoError);
+
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(source);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.ERROR, function () {
+          handleVideoError();
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = source;
       }
       statusText.textContent = 'Stream Loaded';
     }
 
-    function refreshVideo() {
-      loadVideo(videoSource);
+    function handleVideoError() {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        console.warn(`Video error detected, retrying in ${errorRetryDelay / 1000} seconds...`);
+        statusText.textContent = `Error detected - retrying in ${errorRetryDelay / 1000}s...`;
+        setTimeout(() => {
+          refreshVideo();
+          isRefreshing = false;
+        }, errorRetryDelay);
+      }
     }
 
-    loadVideo(videoSource);
-
-    // Auto-refresh every X seconds if enabled
-    if (autoRefreshInterval > 0) {
-      setInterval(refreshVideo, autoRefreshInterval * 1000);
-    }
-
-    // Chat
-    function sendChat() {
-      const input = document.getElementById('chatInput');
-      const text = input.value.trim();
-      if (!text) return;
-      const chatWindow = document.getElementById('chatWindow');
-      const now = dayjs().format('h:mm:ss A');
-      const entry = document.createElement('div');
-      entry.className = 'mb-1';
-      entry.innerHTML = `<span class="viewer-label">Viewer:</span> ${escapeHtml(text)} <span style="font-size:10px; color:#6b7280;">${now}</span>`;
-      chatWindow.appendChild(entry);
-      chatWindow.scrollTop = chatWindow.scrollHeight;
-      input.value = '';
-    }
-    function escapeHtml(s) {
-      return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
-    }
-  </script>
-</body>
-</html>
+    function refresh
