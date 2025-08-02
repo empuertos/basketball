@@ -8,86 +8,53 @@
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
-    body {
-      background-color: #f3f4f6;
-      margin: 0;
-      font-family: system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
-      min-height: 100vh;
-    }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 16px;
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 24px;
-      min-height: 100vh;
-      align-items: stretch;
-    }
-    .video-wrapper, .chat-card {
-      background: white;
-      border-radius: 1rem;
-      padding: 16px;
-      box-shadow: 0 12px 30px -10px rgba(0,0,0,0.15);
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .video-inner {
-      position: relative;
-      background: black;
-      border-radius: 0.75rem;
-      overflow: hidden;
-      flex: 1;
-      min-height: 300px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .video-inner video {
+    body { background-color: #f3f4f6; margin: 0; font-family: system-ui,-apple-system,BlinkMacSystemFont,sans-serif; min-height: 100vh; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 2fr 1fr; gap: 24px; min-height: 100vh; align-items: stretch; }
+    .video-wrapper, .chat-card { background: white; border-radius: 1rem; padding: 16px; box-shadow: 0 12px 30px -10px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 12px; }
+    .video-inner { position: relative; background: black; border-radius: 0.75rem; overflow: hidden; flex: 1; min-height: 300px; }
+    .video-inner video { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: black; }
+    #datetime { position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 8px 14px; border-radius: 10px; font-size: 0.9rem; z-index: 1000; display: flex; gap: 10px; align-items: center; }
+    .chat-window { flex: 1; overflow-y: auto; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; background: #f9fafb; }
+    .chat-input-row { display: flex; gap: 8px; }
+    .viewer-label { font-weight: 600; }
+    @media (max-width: 992px) { .container { grid-template-columns: 1fr; } .video-inner { min-height: 200px; } }
+    /* Spinner Overlay */
+    .spinner-overlay {
       position: absolute;
       inset: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-      background: black;
-    }
-    #datetime {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: rgba(0,0,0,0.6);
-      color: white;
-      padding: 8px 14px;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      z-index: 1000;
+      background: rgba(0, 0, 0, 0.5);
       display: flex;
-      gap: 10px;
+      flex-direction: column;
       align-items: center;
-    }
-    .chat-window {
-      flex: 1;
-      overflow-y: auto;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      padding: 8px;
-      background: #f9fafb;
-    }
-    .chat-input-row {
-      display: flex;
+      justify-content: center;
+      z-index: 10;
       gap: 8px;
+      color: white;
+      font-size: 14px;
     }
-    .viewer-label {
-      font-weight: 600;
+    .spinner {
+      border: 6px solid rgba(255, 255, 255, 0.3);
+      border-top: 6px solid #ffffff;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
     }
-    @media (max-width: 992px) {
-      .container {
-        grid-template-columns: 1fr;
-      }
-      .video-inner {
-        min-height: 200px;
-      }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .retry-btn {
+      background: #f43f5e;
+      color: white;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+    }
+    .retry-btn:hover {
+      background: #e11d48;
     }
   </style>
 </head>
@@ -107,7 +74,12 @@
       </div>
       <div class="text-sm">Status: <span id="statusText" class="font-medium">Loading...</span></div>
       <div class="video-inner" id="embedContent">
-        <div class="text-white/80">Loading stream...</div>
+        <div id="loadingOverlay" class="spinner-overlay">
+          <div class="spinner"></div>
+          <span id="overlayText">Loading stream...</span>
+          <span id="countdownText" style="display:none;">Retrying in 5s</span>
+          <button id="retryButton" class="retry-btn" style="display:none;" onclick="manualRetry()">Click to Retry</button>
+        </div>
       </div>
     </div>
 
@@ -123,12 +95,16 @@
     </div>
   </div>
 
+  <!-- Embedded beep sound -->
+  <audio id="beepSound">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAA" type="audio/wav">
+  </audio>
+
   <script>
-    // ===== CONFIG =====
     const videoSource = 'https://fhlsport121.fgs37g8.xyz/token-cEItm7GWe6WGu2cokPY6kWmBlMCA0SHjOiasxvdPEzP65OPKHUFdD44tqBxJWE1JBD6ExjNnlg%3D%3Da/cfall/s2001/v3b/5no6n3oqnUE0pQbiY3EmAmphZ3umqT0ho25y/super/3x_611404.m3u8';
-    const errorRetryDelay = 5000; // milliseconds (5 seconds)
-    let isRefreshing = false;
-    // ==================
+    const errorRetryDelay = 5; // seconds
+    let retryTimeout = null;
+    let countdownInterval = null;
 
     function updateDateTime() {
       const now = new Date();
@@ -140,39 +116,120 @@
     setInterval(updateDateTime, 1000);
     updateDateTime();
 
-    const statusText = document.getElementById('statusText');
-    const embedContent = document.getElementById('embedContent');
+    function showOverlay(show, message = "Loading stream...", showRetry = false, showCountdown = false) {
+      const overlay = document.getElementById('loadingOverlay');
+      if (!overlay) return;
+      document.getElementById('overlayText').textContent = message;
+      document.getElementById('retryButton').style.display = showRetry ? 'inline-block' : 'none';
+      document.getElementById('countdownText').style.display = showCountdown ? 'block' : 'none';
+      overlay.style.display = show ? 'flex' : 'none';
+    }
+
+    function startCountdown(seconds) {
+      let remaining = seconds;
+      const countdownText = document.getElementById('countdownText');
+      countdownText.textContent = `Retrying in ${remaining}s`;
+      countdownInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          document.getElementById('beepSound').play();
+        } else {
+          countdownText.textContent = `Retrying in ${remaining}s`;
+        }
+      }, 1000);
+    }
 
     function loadVideo(source) {
       statusText.textContent = 'Loading...';
-      embedContent.innerHTML = `<video id="hlsPlayer" controls autoplay muted></video>`;
+      document.getElementById('embedContent').innerHTML = `
+        <div id="loadingOverlay" class="spinner-overlay">
+          <div class="spinner"></div>
+          <span id="overlayText">Loading stream...</span>
+          <span id="countdownText" style="display:none;">Retrying in ${errorRetryDelay}s</span>
+          <button id="retryButton" class="retry-btn" style="display:none;" onclick="manualRetry()">Click to Retry</button>
+        </div>
+        <video id="hlsPlayer" controls autoplay muted playsinline></video>
+      `;
       const video = document.getElementById('hlsPlayer');
 
-      video.addEventListener('error', handleVideoError);
+      video.addEventListener('playing', () => {
+        showOverlay(false);
+        statusText.textContent = 'Stream Playing';
+      });
+
+      video.addEventListener('waiting', () => {
+        showOverlay(true, "Buffering...");
+        statusText.textContent = 'Buffering...';
+      });
+
+      video.addEventListener('error', () => {
+        console.warn('Video error detected, showing retry button and countdown.');
+        statusText.textContent = 'Stream Error';
+        showOverlay(true, "Stream failed", true, true);
+        startCountdown(errorRetryDelay);
+        retryTimeout = setTimeout(refreshVideo, errorRetryDelay * 1000);
+      });
 
       if (Hls.isSupported()) {
-        const hls = new Hls();
+        const hls = new Hls({
+          autoStartLoad: true,
+          startLevel: -1,
+          maxBufferLength: 5,
+          liveSyncDuration: 3,
+          liveMaxLatencyDuration: 5,
+          enableWorker: true
+        });
         hls.loadSource(source);
         hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play();
+        });
         hls.on(Hls.Events.ERROR, function () {
-          handleVideoError();
+          console.warn('HLS.js error, showing retry button and countdown.');
+          statusText.textContent = 'Stream Error';
+          showOverlay(true, "Stream failed", true, true);
+          startCountdown(errorRetryDelay);
+          retryTimeout = setTimeout(refreshVideo, errorRetryDelay * 1000);
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = source;
-      }
-      statusText.textContent = 'Stream Loaded';
-    }
-
-    function handleVideoError() {
-      if (!isRefreshing) {
-        isRefreshing = true;
-        console.warn(`Video error detected, retrying in ${errorRetryDelay / 1000} seconds...`);
-        statusText.textContent = `Error detected - retrying in ${errorRetryDelay / 1000}s...`;
-        setTimeout(() => {
-          refreshVideo();
-          isRefreshing = false;
-        }, errorRetryDelay);
+        video.play();
       }
     }
 
-    function refresh
+    function refreshVideo() {
+      clearTimeout(retryTimeout);
+      clearInterval(countdownInterval);
+      retryTimeout = null;
+      countdownInterval = null;
+      loadVideo(videoSource);
+    }
+
+    function manualRetry() {
+      console.log("Manual retry triggered");
+      refreshVideo();
+    }
+
+    // Initial load
+    loadVideo(videoSource);
+
+    function sendChat() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      const chatWindow = document.getElementById('chatWindow');
+      const now = dayjs().format('h:mm:ss A');
+      const entry = document.createElement('div');
+      entry.className = 'mb-1';
+      entry.innerHTML = `<span class="viewer-label">Viewer:</span> ${escapeHtml(text)} <span style="font-size:10px; color:#6b7280;">${now}</span>`;
+      chatWindow.appendChild(entry);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+      input.value = '';
+    }
+    function escapeHtml(s) {
+      return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+    }
+  </script>
+</body>
+</html>
