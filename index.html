@@ -12,9 +12,43 @@
     .video-inner { position: relative; background: black; border-radius: 0.75rem; overflow: hidden; min-height: 300px; }
     .video-inner video { position: absolute; inset: 0; width: 100%; height: 100%; background: black; }
     #datetime { position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 8px 14px; border-radius: 10px; }
+    /* Spinner Overlay */
+    .spinner-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      gap: 8px;
+      color: white;
+      font-size: 14px;
+    }
+    .spinner {
+      border: 6px solid rgba(255, 255, 255, 0.3);
+      border-top: 6px solid #ffffff;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .retry-btn {
+      background: #f43f5e;
+      color: white;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+    }
+    .retry-btn:hover { background: #e11d48; }
   </style>
 </head>
 <body>
+  <!-- Date & Time -->
   <div id="datetime">
     <div id="date">--</div>
     <div id="time">--</div>
@@ -22,20 +56,39 @@
 
   <div style="max-width:900px;margin:20px auto;">
     <h2 style="font-size:1.5em;font-weight:bold;">Basketball Live Stream</h2>
-    <div class="video-inner">
+
+    <!-- Stream URL input -->
+    <div style="margin-bottom:10px;">
+      <input id="streamInput" type="text" placeholder="Enter .m3u8 URL" style="width:80%;padding:6px;border:1px solid #ccc;border-radius:5px;">
+      <button onclick="setStream()" style="padding:6px 12px;background:#2563eb;color:white;border:none;border-radius:5px;">Load Stream</button>
+    </div>
+
+    <div class="video-inner" id="videoContainer">
+      <div id="loadingOverlay" class="spinner-overlay">
+        <div class="spinner"></div>
+        <span id="overlayText">Loading stream...</span>
+        <span id="countdownText" style="display:none;">Retrying in 5s</span>
+        <button id="retryButton" class="retry-btn" style="display:none;" onclick="manualRetry()">Click to Retry</button>
+      </div>
       <video id="hlsPlayer" controls autoplay muted playsinline></video>
     </div>
   </div>
 
+  <!-- Beep Sound -->
+  <audio id="beepSound">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAA" type="audio/wav">
+  </audio>
+
   <script>
-    // ✅ Paste your Cloudflare Worker URL here
+    // ✅ Your Cloudflare Worker proxy
     const workerProxy = "https://m3u8-proxy.yourname.workers.dev";
-    
-    // ✅ Your actual m3u8 stream
-    const realStream = "https://fhlsport121.fgs37g8.xyz/token-cEItm7GWe6WGu2cokPY6kWmBlMCA0SHjOiasxvdPEzP65OPKHUFdD44tqBxJWE1JBD6ExjNnlg%3D%3Da/cfall/s2001/v3b/5no6n3oqnUE0pQbiY3EmAmphZ3umqT0ho25y/super/3x_611404.m3u8";
-    
-    // Final video source via Cloudflare proxy
-    const videoSource = workerProxy + "?url=" + encodeURIComponent(realStream);
+
+    const errorRetryDelay = 5; // seconds
+    let retryTimeout = null;
+    let countdownInterval = null;
+    let currentStream = localStorage.getItem("streamURL") || "";
+
+    document.getElementById("streamInput").value = currentStream;
 
     function updateDateTime() {
       const now = new Date();
@@ -47,20 +100,82 @@
     setInterval(updateDateTime, 1000);
     updateDateTime();
 
-    function loadVideo(source) {
+    function setStream() {
+      const inputVal = document.getElementById("streamInput").value.trim();
+      if (!inputVal) return alert("Please enter a .m3u8 URL");
+      currentStream = inputVal;
+      localStorage.setItem("streamURL", currentStream);
+      refreshVideo();
+    }
+
+    function showOverlay(show, message = "Loading stream...", showRetry = false, showCountdown = false) {
+      document.getElementById('overlayText').textContent = message;
+      document.getElementById('retryButton').style.display = showRetry ? 'inline-block' : 'none';
+      document.getElementById('countdownText').style.display = showCountdown ? 'block' : 'none';
+      document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+    }
+
+    function startCountdown(seconds) {
+      let remaining = seconds;
+      const countdownText = document.getElementById('countdownText');
+      countdownText.textContent = `Retrying in ${remaining}s`;
+      countdownInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          document.getElementById('beepSound').play();
+        } else {
+          countdownText.textContent = `Retrying in ${remaining}s`;
+        }
+      }, 1000);
+    }
+
+    function loadVideo() {
+      if (!currentStream) return;
+      const source = workerProxy + "?url=" + encodeURIComponent(currentStream);
       const video = document.getElementById('hlsPlayer');
+      if (retryTimeout) clearTimeout(retryTimeout);
+      if (countdownInterval) clearInterval(countdownInterval);
+
       if (Hls.isSupported()) {
         const hls = new Hls({ autoStartLoad: true, maxBufferLength: 5 });
         hls.loadSource(source);
         hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play();
+          showOverlay(false);
+        });
+
+        video.addEventListener('playing', () => showOverlay(false));
+        video.addEventListener('waiting', () => showOverlay(true, "Buffering..."));
+        video.addEventListener('error', () => handleError());
+        hls.on(Hls.Events.ERROR, () => handleError());
+
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = source;
         video.play();
       }
     }
 
-    loadVideo(videoSource);
+    function handleError() {
+      showOverlay(true, "Stream failed", true, true);
+      startCountdown(errorRetryDelay);
+      retryTimeout = setTimeout(refreshVideo, errorRetryDelay * 1000);
+    }
+
+    function refreshVideo() {
+      loadVideo();
+    }
+
+    function manualRetry() {
+      refreshVideo();
+    }
+
+    // Auto-load if a stream was saved before
+    if (currentStream) {
+      loadVideo();
+    }
   </script>
 </body>
 </html>
