@@ -6,72 +6,43 @@
   <title>Basketball Live Stream</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/relativeTime.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/duration.js"></script>
   <style>
     body { background-color: #f3f4f6; }
     .video-container { position: relative; padding-top: 56.25%; }
     .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
     .blur-backdrop { backdrop-filter: blur(6px); }
+    #datetime {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      z-index: 1000;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-family: system-ui, sans-serif;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col md:flex-row bg-gray-100 text-slate-900">
-  <!-- Admin login overlay -->
-  <div id="adminLoginOverlay" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-      <h2 class="text-xl font-semibold mb-4">Admin Login</h2>
-      <p class="text-sm mb-2">Enter admin password to manage stream & events.</p>
-      <input id="adminPasswordInput" type="password" placeholder="Password" class="w-full rounded-md border px-3 py-2 mb-3" />
-      <div class="flex gap-2">
-        <button onclick="tryLogin()" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md">Login</button>
-        <button onclick="viewAsViewer()" class="flex-1 px-4 py-2 bg-gray-300 rounded-md">Viewer Only</button>
-      </div>
-      <p class="text-[11px] mt-3 text-gray-600">(No account needed for viewers. Admin password is stored only in session.)</p>
-    </div>
+  <!-- Date & Time Philippines (12-hour) -->
+  <div id="datetime">
+    <div id="date">--</div>
+    <div id="time">--</div>
   </div>
-
-  <aside id="sidebar" class="w-80 bg-gradient-to-b from-indigo-900 to-slate-800 text-white p-6 flex flex-col gap-4 shadow-2xl transition-all" style="display:none;">
-    <div class="flex justify-between items-start">
-      <div>
-        <h1 class="text-2xl font-bold mb-1">Pro Basketball Stream</h1>
-        <p class="text-sm opacity-80">Admin controls: live embed & schedule.</p>
-      </div>
-      <button onclick="logoutAdmin()" aria-label="Logout" class="text-lg font-bold">✕</button>
-    </div>
-    <div class="space-y-2">
-      <label class="block text-xs font-semibold mb-1">Live Embed / URL</label>
-      <textarea id="embedInput" class="w-full rounded-lg bg-gray-800 text-white p-3 font-mono text-sm min-h-[120px]" placeholder="Paste iframe/embed code or direct URL"></textarea>
-      <div class="flex gap-2">
-        <button onclick="clearEmbed()" class="flex-1 px-3 py-2 bg-red-600 rounded-md shadow hover:bg-red-500 transition text-sm">Clear</button>
-        <button onclick="presetExample()" class="flex-1 px-3 py-2 bg-indigo-500 rounded-md shadow hover:bg-indigo-400 transition text-sm">Example YouTube Live</button>
-      </div>
-    </div>
-    <div class="border-t border-white/20 pt-4">
-      <h2 class="text-sm font-semibold uppercase mb-2">Create Event</h2>
-      <div class="flex flex-col gap-2">
-        <input id="eventName" type="text" placeholder="Event Name" class="w-full rounded-md bg-gray-700 text-white p-2 text-sm" />
-        <input id="eventTime" type="datetime-local" class="w-full rounded-md bg-gray-700 text-white p-2 text-sm" />
-        <button onclick="addEvent()" class="px-3 py-2 bg-green-500 rounded-md shadow hover:bg-green-400 transition text-sm">Add Event</button>
-      </div>
-      <div id="eventList" class="mt-4 text-xs max-h-48 overflow-auto"></div>
-    </div>
-    <div class="mt-auto text-[11px] italic">
-      Events persist in this browser; implement server sync to share.
-    </div>
-  </aside>
 
   <main class="flex-1 p-6">
     <div class="flex flex-col md:flex-row items-start justify-between mb-4 gap-4">
       <div>
         <h2 class="text-xl font-semibold">Basketball Live Stream</h2>
-        <div id="nextEvent" class="mt-2 bg-white rounded-2xl shadow p-4 hidden">
-          <h3 class="text-lg font-semibold mb-1">Next Event</h3>
-          <div id="nextEventContent"></div>
-        </div>
+        <!-- Next event removed -->
       </div>
       <div class="flex gap-4 items-center">
         <div class="text-sm">Status: <span id="statusText" class="font-medium">No Embed</span></div>
-        <button id="authButton" onclick="toggleAuthOverlay()" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow hover:bg-indigo-500 transition text-sm font-medium">Admin Login</button>
       </div>
     </div>
 
@@ -95,173 +66,74 @@
     </div>
   </main>
 
-<script>
-  // Admin password (change this to desired secret). In real use, upgrade to secure backend.
-  const ADMIN_PASSWORD = 'secret123';
-  let isAdmin = false;
-  let events = [];
+  <!-- Placeholder area: paste the iframe / script / link -->
+  <!-- Example insertion should go inside #videoArea if needed -->
 
-  // Dayjs setup
-  dayjs.extend(window.dayjs_plugin_relativeTime);
-  dayjs.extend(window.dayjs_plugin_duration);
+  <script>
+    // Date/time updater for Philippines (Asia/Manila), 12-hour format
+    function updateDateTime() {
+      // Get current time in UTC, then adjust to Manila (UTC+8)
+      const now = new Date();
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const manilaOffsetMs = 8 * 60 * 60 * 1000;
+      const manila = new Date(utc + manilaOffsetMs);
 
-  // DOM
-  const adminOverlay = document.getElementById('adminLoginOverlay');
-  const embedInput = document.getElementById('embedInput');
-  const videoArea = document.getElementById('videoArea');
-  const eventName = document.getElementById('eventName');
-  const eventTime = document.getElementById('eventTime');
-  const eventList = document.getElementById('eventList');
-  const nextEvent = document.getElementById('nextEvent');
-  const nextEventContent = document.getElementById('nextEventContent');
-  const statusText = document.getElementById('statusText');
-  const chatWindow = document.getElementById('chatWindow');
-  const chatInput = document.getElementById('chatInput');
-  const sidebar = document.getElementById('sidebar');
+      // Format date and time
+      const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+      const timeOptions = { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true };
+      const formattedDate = manila.toLocaleDateString('en-US', dateOptions);
+      const formattedTime = manila.toLocaleTimeString('en-US', timeOptions);
 
-  // Simple session check
-  function tryLogin(){
-    const val = document.getElementById('adminPasswordInput').value;
-    if(val === ADMIN_PASSWORD){
-      isAdmin = true;
-      adminOverlay.style.display='none';
-      sidebar.style.display='flex';
-      loadState();
-    } else {
-      alert('Incorrect password');
+      document.getElementById('date').textContent = formattedDate;
+      document.getElementById('time').textContent = formattedTime;
     }
-  }
-  function viewAsViewer(){
-    isAdmin = false;
-    adminOverlay.style.display='none';
-    loadState(); // load viewer state (only video & events display)
-  }
-  function logoutAdmin(){
-    isAdmin = false;
-    sidebar.style.display='none';
-    adminOverlay.style.display='flex';
-  }
 
-  // Persist embed and events for admin only
-  function persist(){
-    if(isAdmin){
-      localStorage.setItem('basketball_embed_script', embedInput.value);
-      localStorage.setItem('basketball_events', JSON.stringify(events));
-    }
-  }
+    setInterval(updateDateTime, 1000);
+    updateDateTime();
 
-  function loadState(){
-    if(isAdmin){
-      const savedEmbed = localStorage.getItem('basketball_embed_script');
-      if(savedEmbed) embedInput.value = savedEmbed;
-      const savedEvents = localStorage.getItem('basketball_events');
-      if(savedEvents){ try{ events = JSON.parse(savedEvents); } catch{}; }
-    }
-    applyEmbed();
-    renderEvents();
-  }
+    // Embed logic: paste the iframe/script/link manually here or programmatically
+    // Example: you can dynamically set embedCode variable to an iframe or URL.
+    const videoArea = document.getElementById('videoArea');
+    const statusText = document.getElementById('statusText');
 
-  function clearEmbed(){
-    if(!isAdmin) return;
-    embedInput.value='';
-    applyEmbed();
-    persist();
-  }
-  function presetExample(){
-    if(!isAdmin) return;
-    embedInput.value = '<iframe width="560" height="315" src="https://www.youtube.com/embed/live_stream?channel=UC4a-Gbdw7vOaccHmFo40b9g" title="YouTube live" frameborder="0" allowfullscreen></iframe>';
-    applyEmbed();
-    persist();
-  }
-  function applyEmbed(){
-    const code = (isAdmin ? embedInput.value.trim() : localStorage.getItem('basketball_embed_script') || '').trim();
-    if(code){
+    function applyEmbed(embedCode) {
       let inner = '';
-      if(code.startsWith('<iframe')){
+      if (!embedCode || !embedCode.trim()) {
+        videoArea.innerHTML = '<div class="text-center text-white/80 px-4 py-20">No Stream Loaded</div>';
+        statusText.textContent = 'No Embed';
+        return;
+      }
+      const code = embedCode.trim();
+      if (code.startsWith('<iframe')) {
         inner = code;
-      } else if(/^https?:\/\//.test(code)){
+      } else if (/^https?:\/\//.test(code)) {
         inner = `<iframe src="${code}" frameborder="0" allowfullscreen></iframe>`;
       } else {
         inner = code;
       }
       videoArea.innerHTML = inner;
       statusText.textContent = 'Stream Loaded';
-    } else {
-      videoArea.innerHTML = '<div class="text-center text-white/80 px-4 py-20">No Stream Loaded</div>';
-      statusText.textContent = 'No Embed';
     }
-  }
 
-  function addEvent(){
-    if(!isAdmin) return;
-    if(!eventName.value.trim() || !eventTime.value) return;
-    events.push({ name: eventName.value.trim(), datetime: eventTime.value });
-    events.sort((a,b)=> new Date(a.datetime) - new Date(b.datetime));
-    eventName.value=''; eventTime.value='';
-    renderEvents();
-    persist();
-  }
-
-  function getCountdown(dt){
-    const now = dayjs();
-    const then = dayjs(dt);
-    if(then.isBefore(now)) return 'Started ' + then.fromNow();
-    const diff = dayjs.duration(then.diff(now));
-    const parts = [];
-    if(diff.days()) parts.push(diff.days()+'d');
-    if(diff.hours()) parts.push(diff.hours()+'h');
-    if(diff.minutes()) parts.push(diff.minutes()+'m');
-    if(diff.seconds()) parts.push(diff.seconds()+'s');
-    return parts.join(' ') || 'Less than a second';
-  }
-
-  function renderEvents(){
-    // Viewer and admin see schedule; only admin can modify.
-    eventList.innerHTML='';
-    if(events.length===0){
-      nextEvent.classList.add('hidden');
-      return;
+    // Chat functionality (viewer-side only)
+    function sendChat() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      const chatWindow = document.getElementById('chatWindow');
+      const now = dayjs().format('h:mm:ss A');
+      const entry = document.createElement('div');
+      entry.className = 'mb-1';
+      entry.innerHTML = `<span class="font-semibold">Viewer:</span> ${escapeHtml(text)} <span class="text-[10px] text-gray-500">${now}</span>`;
+      chatWindow.appendChild(entry);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+      input.value = '';
     }
-    events.forEach((ev,i)=>{
-      const countdown = getCountdown(ev.datetime);
-      const block = `<div class='mb-2 bg-white/5 rounded px-3 py-2'><div class='font-semibold'>${ev.name}</div><div class='text-[11px] opacity-75'>${dayjs(ev.datetime).format('MMMM D, YYYY h:mm A')}</div><div class='text-[11px] mt-1'>${countdown}</div>${isAdmin?"":''}</div>`;
-      if(isAdmin){
-        // admin sidebar list
-        const div = document.createElement('div');
-        div.className='mb-2 bg-gray-800 rounded px-3 py-2 flex justify-between items-start';
-        div.innerHTML = `<div class='flex-1 pr-2'><div class='font-semibold'>${ev.name}</div><div class='text-[11px] opacity-75'>${dayjs(ev.datetime).format('MMMM D, YYYY h:mm A')}</div><div class='text-[11px] mt-1'>${countdown}</div></div><div><button onclick='deleteEvent(${i})' class='text-xs px-2 py-1 bg-red-600 rounded hover:bg-red-500'>✕</button></div>`;
-        eventList.appendChild(div);
-      } else {
-        // viewer next event area only
-        // no list in sidebar for viewers
-      }
-    });
-    // Next event display
-    const first = events[0];
-    nextEvent.classList.remove('hidden');
-    nextEventContent.innerHTML = `<div class='text-lg font-bold'>${first.name}</div><div class='text-sm opacity-75'>${dayjs(first.datetime).format('MMMM D, YYYY h:mm A')}</div><div class='mt-2'>Starts in: <span class='font-medium'>${getCountdown(first.datetime)}</span></div><div class='mt-4'><div class='font-semibold'>Full Schedule:</div><ul class='list-disc list-inside mt-1 text-sm'>${events.map(ev=>`<li><span class='font-semibold'>${ev.name}</span> — ${dayjs(ev.datetime).format('MMM D h:mm A')} (${getCountdown(ev.datetime)})</li>`).join('')}</ul></div>`;
-  }
-  function deleteEvent(i){ if(!isAdmin) return; events.splice(i,1); renderEvents(); persist(); }
 
-  // Chat
-  function sendChat(){
-    const v = chatInput.value.trim();
-    if(!v) return;
-    const p = document.createElement('div');
-    p.className='mb-1';
-    const time = dayjs().format('h:mm:ss A');
-    p.innerHTML = `<span class='font-semibold'>Viewer:</span> ${escapeHtml(v)} <span class='text-[10px] text-gray-500'>${time}</span>`;
-    chatWindow.appendChild(p);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-    chatInput.value='';
-  }
-  function escapeHtml(s){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+    function escapeHtml(s){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
-  // Auto-refresh countdowns
-  setInterval(renderEvents,1000);
-
-  // initialize as viewer until login
-  viewAsViewer();
-</script>
+    // Initialize empty (user should paste their iframe/script/link manually)
+    applyEmbed(''); // no embed by default
+  </script>
 </body>
 </html>
