@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>M3U8 Player via Cloudflare Worker</title>
+  <title>M3U8 Multi-Channel Player</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     body {
@@ -23,29 +23,59 @@
       max-width: 800px;
       height: auto;
       background: #000;
+      margin-top: 15px;
+    }
+    select {
+      padding: 8px;
+      font-size: 1rem;
+      border-radius: 5px;
+      margin-bottom: 15px;
     }
   </style>
 </head>
 <body>
-  <h1>Sample M3U8 Player</h1>
+  <h1>M3U8 Multi-Channel Player</h1>
+
+  <!-- Channel Selector -->
+  <select id="channelSelect">
+    <option value="http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8">Sample 4K Skate Video</option>
+    <option value="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8">Big Buck Bunny</option>
+    <option value="https://moq-live-ak.akamaized.net:443/cmaf/live/2041666/akamai/test.m3u8">Test Live Stream</option>
+  </select>
+
+  <!-- Video Player -->
   <video id="video" controls autoplay></video>
 
   <script>
-    // Final worker URL + target m3u8
-    const m3u8Url = "https://m3u8-proxy.basketball.workers.dev/?url=" +
-                    encodeURIComponent("http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8");
-
+    const workerBase = "https://m3u8-proxy.basketball.workers.dev/?url=";
     const video = document.getElementById('video');
+    const channelSelect = document.getElementById('channelSelect');
+    let hls;
 
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(m3u8Url);
-      hls.attachMedia(video);
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = m3u8Url;
-    } else {
-      alert("Your browser does not support M3U8 playback.");
+    function playStream(m3u8Link) {
+      const proxiedUrl = workerBase + encodeURIComponent(m3u8Link);
+
+      if (Hls.isSupported()) {
+        if (hls) {
+          hls.destroy();
+        }
+        hls = new Hls();
+        hls.loadSource(proxiedUrl);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = proxiedUrl;
+      } else {
+        alert("Your browser does not support M3U8 playback.");
+      }
     }
+
+    // Initial play
+    playStream(channelSelect.value);
+
+    // Change channel on selection
+    channelSelect.addEventListener('change', () => {
+      playStream(channelSelect.value);
+    });
   </script>
 </body>
 </html>
