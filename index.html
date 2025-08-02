@@ -6,6 +6,7 @@
   <title>Basketball Live Stream</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     body {
       background-color: #f3f4f6;
@@ -40,8 +41,12 @@
       overflow: hidden;
       flex: 1;
       min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .video-inner iframe, .video-inner .link-frame {
+    .video-inner iframe, 
+    .video-inner video {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -61,12 +66,6 @@
       display: flex;
       gap: 10px;
       align-items: center;
-    }
-    .status-bar {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      flex-wrap: wrap;
     }
     .chat-window {
       flex: 1;
@@ -91,25 +90,6 @@
         min-height: 200px;
       }
     }
-    .source-box {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .source-box textarea, .source-box input {
-      flex: 1;
-      min-width: 200px;
-      border-radius: 6px;
-      border: 1px solid #d1d5db;
-      padding: 8px;
-      font-family: monospace;
-      font-size: 0.9rem;
-      resize: vertical;
-    }
-    .small-text {
-      font-size: 10px;
-      color: #6b7280;
-    }
   </style>
 </head>
 <body>
@@ -121,97 +101,108 @@
 
   <div class="container">
     <!-- Left: Video -->
-    <div class="video-wrapper" id="videoArea">
-      <div class="flex justify-between items-start gap-4">
-        <div>
-          <h2 class="text-xl font-semibold">Basketball Live Stream</h2>
-          <div class="small-text">Paste either a full &lt;iframe&gt;/embed code or a direct URL below, then click Apply.</div>
-        </div>
-        <div class="status-bar">
-          <div class="text-sm">Status: <span id="statusText" class="font-medium">Stream Loaded</span></div>
-        </div>
+    <div class="video-wrapper">
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-semibold">Basketball Live Stream</h2>
+        <button onclick="refreshVideo()" class="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm">Refresh Video</button>
       </div>
-
-      <div class="source-box">
-        <textarea id="embedInput" rows="2" placeholder="Paste iframe/embed code here or paste https://... link"></textarea>
-        <button id="applyBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-md whitespace-nowrap">Apply</button>
-      </div>
-
+      <div class="text-sm">Status: <span id="statusText" class="font-medium">Loading...</span></div>
       <div class="video-inner" id="embedContent">
-        <!-- iframe or link will appear here -->
-        <div class="flex items-center justify-center h-full text-white/80 stream-placeholder">
-          Loading stream...
-        </div>
+        <div class="text-white/80">Loading stream...</div>
       </div>
     </div>
 
     <!-- Right: Chat -->
     <div class="chat-card">
-      <div>
-        <h3 class="font-semibold mb-2">Live Chat (Viewers)</h3>
-      </div>
+      <h3 class="font-semibold mb-2">Live Chat (Viewers)</h3>
       <div id="chatWindow" class="chat-window"></div>
       <div class="chat-input-row">
         <input id="chatInput" type="text" placeholder="Type a message..." class="flex-1 rounded-md border px-3 py-2" />
         <button onclick="sendChat()" class="px-4 py-2 bg-indigo-600 text-white rounded-md">Send</button>
       </div>
-      <div class="small-text">No login required for viewers. Chat is ephemeral and client-only.</div>
+      <div class="text-[10px] mt-1 text-gray-600">No login required for viewers. Chat is ephemeral and client-only.</div>
     </div>
   </div>
 
   <script>
-    // Date/time updater for Philippines (Asia/Manila), 12-hour format
+    // ===== CONFIG =====
+    const videoSource = 'https://gene7zsf.fot6cwdiagramtogheducation.shop/cricket/test-series-england-vs-india-1962729/england-vs-india.html';
+    const autoRefreshInterval = 300; // seconds between auto-refresh (set to 0 to disable)
+    // ==================
+
     function updateDateTime() {
       const now = new Date();
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
       const manilaOffsetMs = 8 * 60 * 60 * 1000;
       const manila = new Date(utc + manilaOffsetMs);
-
-      const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-      const timeOptions = { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true };
-      document.getElementById('date').textContent = manila.toLocaleDateString('en-US', dateOptions);
-      document.getElementById('time').textContent = manila.toLocaleTimeString('en-US', timeOptions);
+      document.getElementById('date').textContent = manila.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      document.getElementById('time').textContent = manila.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     }
     setInterval(updateDateTime, 1000);
     updateDateTime();
 
-    // Embed/apply logic
-    const embedInput = document.getElementById('embedInput');
-    const applyBtn = document.getElementById('applyBtn');
-    const embedContent = document.getElementById('embedContent');
     const statusText = document.getElementById('statusText');
+    const embedContent = document.getElementById('embedContent');
 
-    function applyEmbed(embedCode) {
-      if (!embedCode || !embedCode.trim()) {
-        embedContent.innerHTML = '<div class="flex items-center justify-center h-full text-white/80 stream-placeholder">No Stream Loaded</div>';
-        statusText.textContent = 'No Embed';
-        return;
-      }
-      const code = embedCode.trim();
-      let inner = '';
-      if (code.startsWith('<iframe') || code.startsWith('<div') || code.startsWith('<script')) {
-        inner = code;
-        embedContent.innerHTML = inner;
-      } else if (/^https?:\/\//.test(code)) {
-        // Wrap URL in iframe
-        embedContent.innerHTML = `<iframe src="${code}" allowfullscreen scrolling="no"></iframe>`;
+    function loadVideo(source) {
+      statusText.textContent = 'Loading...';
+      if (source.startsWith('<iframe') || source.startsWith('<div') || source.startsWith('<script')) {
+        embedContent.innerHTML = source;
+      } else if (/^https?:\/\//.test(source)) {
+        if (source.endsWith('.m3u8')) {
+          embedContent.innerHTML = `<video id="hlsPlayer" controls autoplay muted></video>`;
+          const video = document.getElementById('hlsPlayer');
+          video.addEventListener('error', () => {
+            console.warn('Video error detected, refreshing...');
+            refreshVideo();
+          });
+          if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(source);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.ERROR, function () {
+              console.warn('HLS.js error, refreshing...');
+              refreshVideo();
+            });
+          } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = source;
+          }
+        } else if (/\.(mp4|webm|ogg)$/i.test(source)) {
+          embedContent.innerHTML = `<video src="${source}" controls autoplay muted></video>`;
+          const video = embedContent.querySelector('video');
+          video.addEventListener('error', () => {
+            console.warn('Video error detected, refreshing...');
+            refreshVideo();
+          });
+        } else {
+          embedContent.innerHTML = `<iframe src="${source}" allowfullscreen scrolling="no"></iframe>`;
+          // If iframe fails to load
+          setTimeout(() => {
+            const iframe = embedContent.querySelector('iframe');
+            if (!iframe || iframe.contentWindow === null) {
+              console.warn('Iframe load issue, refreshing...');
+              refreshVideo();
+            }
+          }, 5000);
+        }
       } else {
-        // Fallback: insert raw
-        embedContent.textContent = code;
+        embedContent.textContent = source;
       }
       statusText.textContent = 'Stream Loaded';
     }
 
-    applyBtn.addEventListener('click', () => {
-      applyEmbed(embedInput.value);
-    });
+    function refreshVideo() {
+      loadVideo(videoSource);
+    }
 
-    // Initialize with default link (can be changed)
-    const defaultLink = 'https://gene7zsf.fot6cwdiagramtogheducation.shop/cricket/test-series-england-vs-india-1962729/england-vs-india.html';
-    embedInput.value = defaultLink;
-    applyEmbed(defaultLink);
+    loadVideo(videoSource);
 
-    // Chat (viewer-only)
+    // Auto-refresh every X seconds if enabled
+    if (autoRefreshInterval > 0) {
+      setInterval(refreshVideo, autoRefreshInterval * 1000);
+    }
+
+    // Chat
     function sendChat() {
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
@@ -225,7 +216,9 @@
       chatWindow.scrollTop = chatWindow.scrollHeight;
       input.value = '';
     }
-    function escapeHtml(s){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+    function escapeHtml(s) {
+      return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+    }
   </script>
 </body>
 </html>
