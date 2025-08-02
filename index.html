@@ -7,78 +7,147 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <style>
-    body { background-color: #f3f4f6; }
-    .video-container { position: relative; padding-top: 56.25%; }
-    .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-    .blur-backdrop { backdrop-filter: blur(6px); }
+    body {
+      background-color: #f3f4f6;
+      margin: 0;
+      font-family: system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      box-sizing: border-box;
+      min-height: 100vh;
+    }
+    .video-wrapper {
+      position: relative;
+      background: black;
+      border-radius: 1rem;
+      overflow: hidden;
+      min-height: 360px;
+    }
+    .video-wrapper iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    .card {
+      background: white;
+      border-radius: 1rem;
+      padding: 16px;
+      box-shadow: 0 12px 30px -10px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
     #datetime {
       position: fixed;
       top: 10px;
       right: 10px;
       background: rgba(0,0,0,0.6);
       color: white;
-      padding: 6px 12px;
-      border-radius: 8px;
+      padding: 8px 14px;
+      border-radius: 10px;
       font-size: 0.9rem;
       z-index: 1000;
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
-      font-family: system-ui, sans-serif;
+    }
+    .status-bar {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 992px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      .video-wrapper {
+        min-height: 240px;
+      }
+    }
+    .stream-placeholder {
+      padding: 80px 20px;
+      text-align: center;
+      color: rgba(255,255,255,0.7);
+      font-size: 1rem;
+    }
+    .chat-window {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 8px;
+      background: #f9fafb;
+      max-height: 500px;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .viewer-label {
+      font-weight: 600;
+    }
+    .small-text {
+      font-size: 10px;
+      color: #6b7280;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col md:flex-row bg-gray-100 text-slate-900">
+<body>
   <!-- Date & Time Philippines (12-hour) -->
   <div id="datetime">
     <div id="date">--</div>
     <div id="time">--</div>
   </div>
 
-  <main class="flex-1 p-6">
-    <div class="flex flex-col md:flex-row items-start justify-between mb-4 gap-4">
-      <div>
-        <h2 class="text-xl font-semibold">Basketball Live Stream</h2>
-        <!-- Next event removed -->
-      </div>
-      <div class="flex gap-4 items-center">
-        <div class="text-sm">Status: <span id="statusText" class="font-medium">No Embed</span></div>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2">
-        <div class="video-container bg-black rounded-xl overflow-hidden shadow-lg mb-6" id="videoArea">
-          <div class="text-center text-white/80 px-4 py-20">No Stream Loaded</div>
-        </div>
-      </div>
-      <div class="flex flex-col gap-4">
-        <div class="flex-1 bg-white rounded-2xl shadow p-4">
-          <h3 class="font-semibold mb-2">Live Chat (Viewers)</h3>
-          <div id="chatWindow" class="h-64 overflow-auto border rounded p-2 bg-gray-50 text-sm"></div>
-          <div class="mt-2 flex gap-2">
-            <input id="chatInput" type="text" placeholder="Type a message..." class="flex-1 rounded-md border px-3 py-2" />
-            <button onclick="sendChat()" class="px-4 py-2 bg-indigo-600 text-white rounded-md">Send</button>
+  <div class="container">
+    <!-- Left: Video -->
+    <div class="video-wrapper card" id="videoArea">
+      <div class="flex flex-col gap-3">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-xl font-semibold">Basketball Live Stream</h2>
           </div>
-          <div class="text-[10px] mt-1 text-gray-600">No login required for viewers. Chat is ephemeral and client-only.</div>
+          <div class="status-bar">
+            <div class="text-sm">Status: <span id="statusText" class="font-medium">No Embed</span></div>
+          </div>
+        </div>
+        <div id="embedContent" class="flex-1">
+          <div class="stream-placeholder">No Stream Loaded<br><small>Paste the iframe / script / link below in your integration logic.</small></div>
         </div>
       </div>
     </div>
-  </main>
 
-  <!-- Placeholder area: paste the iframe / script / link -->
-  <!-- Example insertion should go inside #videoArea if needed -->
+    <!-- Right: Chat -->
+    <div class="card">
+      <div>
+        <h3 class="font-semibold mb-2">Live Chat (Viewers)</h3>
+      </div>
+      <div id="chatWindow" class="chat-window"></div>
+      <div class="chat-input-row">
+        <input id="chatInput" type="text" placeholder="Type a message..." class="flex-1 rounded-md border px-3 py-2" />
+        <button onclick="sendChat()" class="px-4 py-2 bg-indigo-600 text-white rounded-md">Send</button>
+      </div>
+      <div class="small-text">No login required for viewers. Chat is ephemeral and client-only.</div>
+    </div>
+  </div>
 
   <script>
     // Date/time updater for Philippines (Asia/Manila), 12-hour format
     function updateDateTime() {
-      // Get current time in UTC, then adjust to Manila (UTC+8)
       const now = new Date();
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
       const manilaOffsetMs = 8 * 60 * 60 * 1000;
       const manila = new Date(utc + manilaOffsetMs);
 
-      // Format date and time
       const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
       const timeOptions = { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true };
       const formattedDate = manila.toLocaleDateString('en-US', dateOptions);
@@ -87,35 +156,35 @@
       document.getElementById('date').textContent = formattedDate;
       document.getElementById('time').textContent = formattedTime;
     }
-
     setInterval(updateDateTime, 1000);
     updateDateTime();
 
-    // Embed logic: paste the iframe/script/link manually here or programmatically
-    // Example: you can dynamically set embedCode variable to an iframe or URL.
-    const videoArea = document.getElementById('videoArea');
-    const statusText = document.getElementById('statusText');
-
+    // Embed logic placeholder: you should set this string to your iframe/embed or URL
     function applyEmbed(embedCode) {
-      let inner = '';
+      const area = document.getElementById('embedContent');
+      const statusText = document.getElementById('statusText');
       if (!embedCode || !embedCode.trim()) {
-        videoArea.innerHTML = '<div class="text-center text-white/80 px-4 py-20">No Stream Loaded</div>';
+        area.innerHTML = '<div class="stream-placeholder">No Stream Loaded<br><small>Paste the iframe / script / link below in your integration logic.</small></div>';
         statusText.textContent = 'No Embed';
         return;
       }
+      let inner = '';
       const code = embedCode.trim();
       if (code.startsWith('<iframe')) {
         inner = code;
       } else if (/^https?:\/\//.test(code)) {
-        inner = `<iframe src="${code}" frameborder="0" allowfullscreen></iframe>`;
+        inner = `<iframe src="${code}" allowfullscreen></iframe>`;
       } else {
         inner = code;
       }
-      videoArea.innerHTML = inner;
+      area.innerHTML = inner;
       statusText.textContent = 'Stream Loaded';
     }
 
-    // Chat functionality (viewer-side only)
+    // Example usage (uncomment and replace with actual embed if desired):
+    // applyEmbed('<iframe src="YOUR_STREAM_URL" frameborder="0" allowfullscreen></iframe>');
+
+    // Chat (viewer-only)
     function sendChat() {
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
@@ -124,16 +193,15 @@
       const now = dayjs().format('h:mm:ss A');
       const entry = document.createElement('div');
       entry.className = 'mb-1';
-      entry.innerHTML = `<span class="font-semibold">Viewer:</span> ${escapeHtml(text)} <span class="text-[10px] text-gray-500">${now}</span>`;
+      entry.innerHTML = `<span class="viewer-label">Viewer:</span> ${escapeHtml(text)} <span style="font-size:10px; color:#6b7280;">${now}</span>`;
       chatWindow.appendChild(entry);
       chatWindow.scrollTop = chatWindow.scrollHeight;
       input.value = '';
     }
-
     function escapeHtml(s){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
-    // Initialize empty (user should paste their iframe/script/link manually)
-    applyEmbed(''); // no embed by default
+    // initialize empty
+    applyEmbed('');
   </script>
 </body>
 </html>
