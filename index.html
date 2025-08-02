@@ -3,32 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Embedded Stream via Proxy</title>
+  <title>Proxied Embedded Stream</title>
   <style>
     body {
-      background: #1f2937;
+      background: #0f172a;
       margin: 0;
       font-family: system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
-      color: white;
+      color: #f0f9ff;
     }
-    .wrapper {
+    .container {
       max-width: 1000px;
-      margin: 24px auto;
+      margin: 32px auto;
       padding: 0 16px;
     }
     h1 {
+      margin: 0 0 12px;
       font-size: 1.75rem;
       font-weight: 700;
-      margin-bottom: 8px;
     }
-    .video-inner {
+    .video-wrapper {
       position: relative;
-      background: black;
-      border-radius: 0.75rem;
+      background: #000;
+      border-radius: 10px;
       overflow: hidden;
       min-height: 480px;
     }
-    .video-inner iframe {
+    .video-wrapper iframe {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -40,41 +40,19 @@
       position: fixed;
       top: 10px;
       right: 10px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.65);
       padding: 8px 14px;
-      border-radius: 10px;
+      border-radius: 8px;
       font-size: 0.85rem;
       display: flex;
       gap: 10px;
       align-items: center;
+      color: #fff;
     }
-    .spinner-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 10;
-      gap: 8px;
-      font-size: 14px;
-      transition: opacity .3s;
-    }
-    .spinner {
-      border: 6px solid rgba(255,255,255,0.3);
-      border-top: 6px solid #ffffff;
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      animation: spin 1s linear infinite;
-    }
-    .error {
-      margin-top: 12px;
-      background: #f87171;
-      padding: 10px 14px;
-      border-radius: 6px;
-      font-weight: 600;
+    .note {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      opacity: 0.85;
     }
   </style>
 </head>
@@ -84,32 +62,23 @@
     <div id="time">--</div>
   </div>
 
-  <div class="wrapper">
-    <h1>Embedded Stream (proxied)</h1>
-
-    <div class="video-inner" id="videoContainer">
-      <div id="loadingOverlay" class="spinner-overlay">
-        <div class="spinner" aria-label="loading"></div>
-        <div id="overlayText">Loading proxied page...</div>
-      </div>
+  <div class="container">
+    <h1>Live Stream (proxied)</h1>
+    <div class="video-wrapper">
       <iframe
         id="embedFrame"
-        src="https://m3u8-proxy.empuertostevenson.workers.dev/?url=https://bingov37l.0uhdworryvdet57alive.shop/cricket/t20-world-championship-of-legends-1962534/pakistan-legends-vs-south-africa-legends.html?icg=UEg&ilang=en"
+        src="https://stream.videocode.page.gd/?url=https://bingov37l.0uhdworryvdet57alive.shop/cricket/t20-world-championship-of-legends-1962534/pakistan-legends-vs-south-africa-legends.html?icg=UEg&ilang=en"
         allowfullscreen
         loading="lazy"
         title="Proxied Embed"
       ></iframe>
     </div>
-
-    <div id="errorContainer" style="display:none;">
-      <div class="error">
-        Unable to load embedded content. If the target site actively blocks framing or has other restrictions, you can try reloading or check the Worker setup.
-      </div>
+    <div class="note">
+      Stream is loaded through your Worker proxy at <code>stream.videocode.page.gd</code>; if it fails, ensure the Worker is deployed and the DNS/route for <code>stream.videocode.page.gd</code> is correctly configured.
     </div>
   </div>
 
   <script>
-    // Manila time display
     function updateDateTime() {
       const now = new Date();
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -123,27 +92,6 @@
     }
     setInterval(updateDateTime, 1000);
     updateDateTime();
-
-    const iframe = document.getElementById('embedFrame');
-    const overlay = document.getElementById('loadingOverlay');
-    const errorContainer = document.getElementById('errorContainer');
-    let loadTimeout;
-
-    function finishLoading() {
-      overlay.style.display = 'none';
-    }
-
-    iframe.addEventListener('load', () => {
-      finishLoading();
-      clearTimeout(loadTimeout);
-    });
-
-    // Fallback: hide spinner after 8s even without load event
-    loadTimeout = setTimeout(() => {
-      finishLoading();
-      // Optionally show error if content still blank (can't reliably detect cross-origin failure)
-      // errorContainer.style.display = 'block';
-    }, 8000);
   </script>
 </body>
 </html>
