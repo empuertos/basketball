@@ -9,9 +9,14 @@
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     body { background-color: #f3f4f6; margin: 0; font-family: system-ui,-apple-system,BlinkMacSystemFont,sans-serif; }
-    .video-inner { position: relative; background: black; border-radius: 0.75rem; overflow: hidden; min-height: 300px; }
-    .video-inner video { position: absolute; inset: 0; width: 100%; height: 100%; background: black; }
-    #datetime { position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 8px 14px; border-radius: 10px; }
+    .wrapper { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 8px; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .controls input { flex: 1; min-width: 200px; padding: 8px; border-radius: 6px; border: 1px solid #d1d5db; font-family: monospace; }
+    .controls button { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; background: #2563eb; color: white; font-weight: 600; }
+    .video-inner { position: relative; background: black; border-radius: 0.75rem; overflow: hidden; min-height: 360px; }
+    .video-inner iframe, .video-inner video { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: black; }
+    #datetime { position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 8px 14px; border-radius: 10px; font-size: 0.85rem; display: flex; gap: 10px; align-items: center; }
     /* Spinner Overlay */
     .spinner-overlay {
       position: absolute;
@@ -45,136 +50,265 @@
       border: none;
     }
     .retry-btn:hover { background: #e11d48; }
+    .status { margin-top: 6px; font-size: 0.9rem; }
   </style>
 </head>
 <body>
-  <!-- Date & Time -->
   <div id="datetime">
     <div id="date">--</div>
     <div id="time">--</div>
   </div>
 
-  <div style="max-width:900px;margin:20px auto;">
-    <h2 style="font-size:1.5em;font-weight:bold;">Basketball Live Stream</h2>
+  <div class="wrapper">
+    <h1>Basketball Live Stream</h1>
 
-    <!-- Stream URL input -->
-    <div style="margin-bottom:10px;">
-      <input id="streamInput" type="text" placeholder="Enter .m3u8 URL" style="width:80%;padding:6px;border:1px solid #ccc;border-radius:5px;">
-      <button onclick="setStream()" style="padding:6px 12px;background:#2563eb;color:white;border:none;border-radius:5px;">Load Stream</button>
+    <div class="controls">
+      <input id="streamInput" type="text" placeholder="Paste .m3u8, iframe/embed code, or URL (e.g., https://... .mp4/.m3u8/YouTube embed)" />
+      <button id="loadBtn">Load Stream</button>
     </div>
+    <div class="status">Source: <span id="sourceLabel">none</span> | Status: <span id="statusText">idle</span></div>
 
     <div class="video-inner" id="videoContainer">
       <div id="loadingOverlay" class="spinner-overlay">
         <div class="spinner"></div>
-        <span id="overlayText">Loading stream...</span>
-        <span id="countdownText" style="display:none;">Retrying in 5s</span>
+        <div id="overlayText">Loading stream...</div>
+        <div>
+          <span id="countdownText" style="display:none;">Retrying in 5s</span>
+        </div>
         <button id="retryButton" class="retry-btn" style="display:none;" onclick="manualRetry()">Click to Retry</button>
       </div>
-      <video id="hlsPlayer" controls autoplay muted playsinline></video>
+      <!-- video element will be inserted dynamically for native playback -->
+      <div id="embedHolder"></div>
     </div>
   </div>
 
-  <!-- Beep Sound -->
+  <!-- beep -->
   <audio id="beepSound">
     <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAA" type="audio/wav">
   </audio>
 
   <script>
-    // ✅ Your Cloudflare Worker proxy
-    const workerProxy = "https://m3u8-proxy.yourname.workers.dev";
-
+    // ==== CONFIG ====
+    const workerProxy = "https://m3u8-proxy.yourname.workers.dev"; // << replace with your deployed Worker URL
     const errorRetryDelay = 5; // seconds
+    // ================
+
+    // State
+    let currentSourceRaw = localStorage.getItem("streamInput") || "";
     let retryTimeout = null;
     let countdownInterval = null;
-    let currentStream = localStorage.getItem("streamURL") || "";
+    let hlsInstance = null;
 
-    document.getElementById("streamInput").value = currentStream;
+    const streamInput = document.getElementById("streamInput");
+    const loadBtn = document.getElementById("loadBtn");
+    const overlayText = document.getElementById("overlayText");
+    const countdownText = document.getElementById("countdownText");
+    const retryButton = document.getElementById("retryButton");
+    const statusText = document.getElementById("statusText");
+    const sourceLabel = document.getElementById("sourceLabel");
+    const videoContainer = document.getElementById("videoContainer");
+    const embedHolder = document.getElementById("embedHolder");
+    const beep = document.getElementById("beepSound");
 
+    // Date/time Manila
     function updateDateTime() {
       const now = new Date();
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-      const manila = new Date(utc + (8 * 60 * 60 * 1000));
+      const manila = new Date(utc + 8 * 60 * 60 * 1000);
       document.getElementById('date').textContent = manila.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       document.getElementById('time').textContent = manila.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     }
     setInterval(updateDateTime, 1000);
     updateDateTime();
 
-    function setStream() {
-      const inputVal = document.getElementById("streamInput").value.trim();
-      if (!inputVal) return alert("Please enter a .m3u8 URL");
-      currentStream = inputVal;
-      localStorage.setItem("streamURL", currentStream);
-      refreshVideo();
-    }
-
+    // Helpers
     function showOverlay(show, message = "Loading stream...", showRetry = false, showCountdown = false) {
-      document.getElementById('overlayText').textContent = message;
-      document.getElementById('retryButton').style.display = showRetry ? 'inline-block' : 'none';
-      document.getElementById('countdownText').style.display = showCountdown ? 'block' : 'none';
-      document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+      overlayText.textContent = message;
+      retryButton.style.display = showRetry ? 'inline-block' : 'none';
+      countdownText.style.display = showCountdown ? 'block' : 'none';
+      document.getElementById("loadingOverlay").style.display = show ? "flex" : "none";
     }
 
     function startCountdown(seconds) {
       let remaining = seconds;
-      const countdownText = document.getElementById('countdownText');
       countdownText.textContent = `Retrying in ${remaining}s`;
       countdownInterval = setInterval(() => {
         remaining--;
         if (remaining <= 0) {
           clearInterval(countdownInterval);
-          document.getElementById('beepSound').play();
+          beep.play().catch(()=>{}); // play alert
         } else {
           countdownText.textContent = `Retrying in ${remaining}s`;
         }
       }, 1000);
     }
 
-    function loadVideo() {
-      if (!currentStream) return;
-      const source = workerProxy + "?url=" + encodeURIComponent(currentStream);
-      const video = document.getElementById('hlsPlayer');
-      if (retryTimeout) clearTimeout(retryTimeout);
-      if (countdownInterval) clearInterval(countdownInterval);
+    function clearRetryTimers() {
+      if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null; }
+      if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+    }
 
-      if (Hls.isSupported()) {
-        const hls = new Hls({ autoStartLoad: true, maxBufferLength: 5 });
-        hls.loadSource(source);
-        hls.attachMedia(video);
+    function detectType(raw) {
+      const trimmed = raw.trim();
+      if (trimmed.startsWith("<iframe") || trimmed.startsWith("<div") || trimmed.startsWith("<script")) return "embed-html";
+      if (/\.m3u8(\?.*)?$/i.test(trimmed)) return "hls";
+      if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(trimmed)) return "direct-video";
+      if (/^https?:\/\//i.test(trimmed)) return "fallback-iframe";
+      return "unknown";
+    }
 
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play();
-          showOverlay(false);
-        });
+    function setSourceLabel(type) {
+      sourceLabel.textContent = type;
+    }
 
-        video.addEventListener('playing', () => showOverlay(false));
-        video.addEventListener('waiting', () => showOverlay(true, "Buffering..."));
-        video.addEventListener('error', () => handleError());
-        hls.on(Hls.Events.ERROR, () => handleError());
+    function loadStream(raw) {
+      clearRetryTimers();
+      if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+      embedHolder.innerHTML = ""; // clear previous
+      showOverlay(true, "Loading stream...", false, false);
+      statusText.textContent = "Loading...";
+      const type = detectType(raw);
+      setSourceLabel(type);
+      localStorage.setItem("streamInput", raw);
+      currentSourceRaw = raw;
 
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = source;
-        video.play();
+      if (type === "embed-html") {
+        // inject HTML embed directly
+        embedHolder.innerHTML = raw;
+        showOverlay(false);
+        statusText.textContent = "Embed injected";
+      } else if (type === "hls") {
+        // use worker proxy to bypass CORS
+        const proxied = workerProxy + "?url=" + encodeURIComponent(raw);
+        playHLS(proxied);
+      } else if (type === "direct-video") {
+        const videoEl = document.createElement("video");
+        videoEl.id = "nativePlayer";
+        videoEl.controls = true;
+        videoEl.autoplay = true;
+        videoEl.muted = true;
+        videoEl.playsInline = true;
+        videoEl.src = raw;
+        embedHolder.appendChild(videoEl);
+        bindNativeEvents(videoEl);
+      } else if (type === "fallback-iframe") {
+        // wrap in iframe
+        const iframe = document.createElement("iframe");
+        iframe.src = raw;
+        iframe.allowFullscreen = true;
+        iframe.loading = "lazy";
+        embedHolder.appendChild(iframe);
+        showOverlay(false);
+        statusText.textContent = "Iframe loaded";
+      } else {
+        // unknown: show as text
+        embedHolder.textContent = raw;
+        showOverlay(false);
+        statusText.textContent = "Unknown source";
       }
     }
 
-    function handleError() {
-      showOverlay(true, "Stream failed", true, true);
-      startCountdown(errorRetryDelay);
-      retryTimeout = setTimeout(refreshVideo, errorRetryDelay * 1000);
+    function bindNativeEvents(videoEl) {
+      videoEl.addEventListener("playing", () => {
+        showOverlay(false);
+        statusText.textContent = "Playing";
+      });
+      videoEl.addEventListener("waiting", () => {
+        showOverlay(true, "Buffering...");
+        statusText.textContent = "Buffering";
+      });
+      videoEl.addEventListener("error", () => {
+        statusText.textContent = "Error";
+        showOverlay(true, "Stream failed", true, true);
+        startCountdown(errorRetryDelay);
+        retryTimeout = setTimeout(refreshStream, errorRetryDelay * 1000);
+      });
     }
 
-    function refreshVideo() {
-      loadVideo();
+    function playHLS(source) {
+      const videoEl = document.createElement("video");
+      videoEl.id = "hlsPlayer";
+      videoEl.controls = true;
+      videoEl.autoplay = true;
+      videoEl.muted = true;
+      videoEl.playsInline = true;
+      embedHolder.appendChild(videoEl);
+
+      if (Hls.isSupported()) {
+        hlsInstance = new Hls({
+          autoStartLoad: true,
+          startLevel: -1,
+          maxBufferLength: 5,
+          liveSyncDuration: 3,
+          liveMaxLatencyDuration: 5,
+          enableWorker: true
+        });
+        hlsInstance.loadSource(source);
+        hlsInstance.attachMedia(videoEl);
+
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+          videoEl.play();
+          showOverlay(false);
+          statusText.textContent = "Playing HLS";
+        });
+
+        videoEl.addEventListener("playing", () => {
+          showOverlay(false);
+          statusText.textContent = "Playing HLS";
+        });
+        videoEl.addEventListener("waiting", () => {
+          showOverlay(true, "Buffering...");
+          statusText.textContent = "Buffering";
+        });
+        videoEl.addEventListener("error", () => {
+          statusText.textContent = "Error";
+          showOverlay(true, "Stream failed", true, true);
+          startCountdown(errorRetryDelay);
+          retryTimeout = setTimeout(refreshStream, errorRetryDelay * 1000);
+        });
+
+        hlsInstance.on(Hls.Events.ERROR, () => {
+          statusText.textContent = "Error";
+          showOverlay(true, "Stream failed", true, true);
+          startCountdown(errorRetryDelay);
+          retryTimeout = setTimeout(refreshStream, errorRetryDelay * 1000);
+        });
+      } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+        videoEl.src = source;
+        videoEl.play();
+        bindNativeEvents(videoEl);
+      } else {
+        showOverlay(false);
+        statusText.textContent = "HLS not supported";
+      }
+    }
+
+    function refreshStream() {
+      loadStream(currentSourceRaw);
     }
 
     function manualRetry() {
-      refreshVideo();
+      clearRetryTimers();
+      refreshStream();
     }
 
-    // Auto-load if a stream was saved before
-    if (currentStream) {
-      loadVideo();
+    loadBtn.addEventListener("click", () => {
+      const val = streamInput.value.trim();
+      if (!val) return;
+      loadStream(val);
+    });
+
+    // Enter key triggers
+    streamInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        loadBtn.click();
+      }
+    });
+
+    // Auto-load saved source
+    if (currentSourceRaw) {
+      streamInput.value = currentSourceRaw;
+      loadStream(currentSourceRaw);
     }
   </script>
 </body>
