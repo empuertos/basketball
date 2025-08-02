@@ -23,12 +23,12 @@
   </style>
 </head>
 <body>
-  <h1>M3U8 Player</h1>
+  <h1>Sample M3U8 Player</h1>
   <video id="video" controls autoplay></video>
 
   <script>
-    // I-EDIT ito: palitan <username> sa worker URL mo
-    const m3u8Url = "basketball.workers.dev/?url=" +
+    // Palitan <username> ng Cloudflare account mo
+    const m3u8Url = "https://m3u8-proxy.<username>.workers.dev/?url=" +
                     encodeURIComponent("http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8");
 
     const video = document.getElementById('video');
