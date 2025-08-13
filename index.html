@@ -144,70 +144,29 @@
     <div class="date-time" id="dateTimeDisplay"></div>
     <div class="content-wrapper">
       <div class="video-container" id="videoArea">
-<head>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Live Event Selector</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-        }
+ <select id="videoSelector">
+  <option value="VIDEO_ID_1">Video 1</option>
+  <option value="VIDEO_ID_2">Video 2</option>
+  <option value="VIDEO_ID_3">Video 3</option>
+</select>
 
-        #videoFrame {
-            width: 100%;
-            max-width: 560px; /* Maximum width for larger screens */
-            height: auto; /* Maintain aspect ratio */
-            aspect-ratio: 16 / 9; /* Maintain 16:9 aspect ratio */
-            border: none;
-        }
+<iframe id="youtubeFrame" width="560" height="315"
+    src="https://www.youtube.com/embed/VIDEO_ID_1"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowfullscreen>
+</iframe>
 
-        select {
-            width: 100%;
-            max-width: 300px; /* Maximum width for the dropdown */
-            padding: 10px;
-            margin-bottom: 20px;
-            font-size: 16px;
-        }
+<script>
+  const selector = document.getElementById('videoSelector');
+  const iframe = document.getElementById('youtubeFrame');
 
-        @media (max-width: 600px) {
-            select {
-                font-size: 14px; /* Smaller font size for mobile */
-            }
-        }
-    </style>
-</head>
-<body>
+  selector.addEventListener('change', function() {
+    const videoId = this.value;
+    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+  });
+</script>
 
-    <h1>Select a Live Event</h1>
-    <select id="liveEventSelect" onchange="updateVideo()">
-        <option value="">--Select a Live Event--</option>
-        <option value="VIDEO_ID_1">Live Event 1</option>
-        <option value="VIDEO_ID_2">Live Event 2</option>
-        <option value="VIDEO_ID_3">Live Event 3</option>
-        <!-- Add more options as needed -->
-    </select>
-
-    <iframe id="videoFrame" src="" allowfullscreen></iframe>
-
-    <script>
-        function updateVideo() {
-            var select = document.getElementById("liveEventSelect");
-            var videoId = select.value;
-            var iframe = document.getElementById("videoFrame");
-
-            if (videoId) {
-                iframe.src = "https://www.youtube.com/embed/" + videoId;
-            } else {
-                iframe.src = ""; // Clear the iframe if no selection
-            }
-        }
-    </script>
 
 </body>
 </html>
