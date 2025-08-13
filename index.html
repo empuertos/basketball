@@ -144,14 +144,26 @@
     <div class="date-time" id="dateTimeDisplay"></div>
     <div class="content-wrapper">
       <div class="video-container" id="videoArea">
-        <iframe src="<iframe 
-  src="https://empuertos.github.io/player.html" 
-  width="800" 
-  height="450" 
-  frameborder="0" 
-  allowfullscreen 
-  allow="autoplay; encrypted-media">
-</iframe>
+        <html>
+  <body>
+    <!-- Add a placeholder for the Twitch embed -->
+    <div id="twitch-embed"></div>
+
+    <!-- Load the Twitch embed JavaScript file -->
+    <script src="https://embed.twitch.tv/embed/v1.js"></script>
+
+    <!-- Create a Twitch.Embed object that will render within the "twitch-embed" element -->
+    <script type="text/javascript">
+      new Twitch.Embed("twitch-embed", {
+        width: 854,
+        height: 480,
+        channel: "monstercat",
+        // Only needed if this page is going to be embedded on other websites
+        parent: ["https://empuertos.github.io/basketball", "othersite.example.com"]
+      });
+    </script>
+  </body>
+</html>
 
       </div>
       <div class="chat-container" aria-label="Live chat">
