@@ -145,14 +145,40 @@
     <div class="content-wrapper">
       <div class="video-container" id="videoArea">
 <head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Live Event Selector</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
         #videoFrame {
-            width: 560px;
-            height: 315px;
+            width: 100%;
+            max-width: 560px; /* Maximum width for larger screens */
+            height: auto; /* Maintain aspect ratio */
+            aspect-ratio: 16 / 9; /* Maintain 16:9 aspect ratio */
             border: none;
+        }
+
+        select {
+            width: 100%;
+            max-width: 300px; /* Maximum width for the dropdown */
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        @media (max-width: 600px) {
+            select {
+                font-size: 14px; /* Smaller font size for mobile */
+            }
         }
     </style>
 </head>
@@ -161,7 +187,7 @@
     <h1>Select a Live Event</h1>
     <select id="liveEventSelect" onchange="updateVideo()">
         <option value="">--Select a Live Event--</option>
-        <option value="zh66C-DOsj4?si=Q-hY-5v-2r6UM5sw">Live Event 1</option>
+        <option value="VIDEO_ID_1">Live Event 1</option>
         <option value="VIDEO_ID_2">Live Event 2</option>
         <option value="VIDEO_ID_3">Live Event 3</option>
         <!-- Add more options as needed -->
@@ -182,6 +208,10 @@
             }
         }
     </script>
+
+</body>
+</html>
+
 
 </body>
 </html>
