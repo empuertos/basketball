@@ -144,8 +144,50 @@
     <div class="date-time" id="dateTimeDisplay"></div>
     <div class="content-wrapper">
       <div class="video-container" id="videoArea">
- <iframe width="560" height="315" src="https://www.youtube.com/embed?listType=user_uploads&list=UCtInrnU3QbWqFGsdKT1GZtg" frameborder="0" allowfullscreen></iframe>
-        <h3>Live Chat</h3>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Live Event Selector</title>
+    <style>
+        #videoFrame {
+            width: 560px;
+            height: 315px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Select a Live Event</h1>
+    <select id="liveEventSelect" onchange="updateVideo()">
+        <option value="">--Select a Live Event--</option>
+        <option value="VIDEO_ID_1">Live Event 1</option>
+        <option value="VIDEO_ID_2">Live Event 2</option>
+        <option value="VIDEO_ID_3">Live Event 3</option>
+        <!-- Add more options as needed -->
+    </select>
+
+    <iframe id="videoFrame" src="" allowfullscreen></iframe>
+
+    <script>
+        function updateVideo() {
+            var select = document.getElementById("liveEventSelect");
+            var videoId = select.value;
+            var iframe = document.getElementById("videoFrame");
+
+            if (videoId) {
+                iframe.src = "https://www.youtube.com/embed/" + videoId;
+            } else {
+                iframe.src = ""; // Clear the iframe if no selection
+            }
+        }
+    </script>
+
+</body>
+</html>
+
         <div id="chatWindow" aria-live="polite" aria-relevant="additions"></div>
         <div class="chat-input-group">
           <input id="chatInput" type="text" placeholder="Type a message..." aria-label="Chat message input" />
