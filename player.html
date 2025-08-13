@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Live Stream - st3v3ns0n</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { 
+    background: #000; 
+    margin: 0; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    height: 100vh;
+  }
+  video {
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    background: #000;
+  }
+</style>
+</head>
+<body>
+
+<video id="video" controls autoplay playsinline></video>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+  const video = document.getElementById('video');
+  const streamURL = 'https://180.190.127.246/hls/stream.m3u8';
+
+  if (Hls.isSupported()) {
+    const hls = new Hls();
+    hls.loadSource(streamURL);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      video.play();
+    });
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = streamURL;
+    video.addEventListener('loadedmetadata', () => {
+      video.play();
+    });
+  }
+</script>
+
+</body>
+</html>
