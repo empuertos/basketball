@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>YouTube Live Chat Overlay</title>
+    <style>
+        body {
+            background: transparent;
+            color: white;
+            font-family: 'Poppins', sans-serif; /* Change font here */
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        #chat {
+            width: 100%;
+            height: 100vh;
+            overflow-y: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 10px;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 8px 12px;
+            border-radius: 15px;
+            background: rgba(0,0,0,0.6);
+            animation: fadeInUp 0.5s ease;
+            font-size: 16px;
+        }
+        .author {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+    <!-- Google Fonts for customization -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Roboto&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="chat">Loading chat...</div>
+
+    <script>
+        const API_KEY = "YOUR_API_KEY";
+        const CHANNEL_ID = "YOUR_CHANNEL_ID";
+        let liveChatId = null;
+        let userColors = {};
+
+        function getRandomColor() {
+            const colors = [
+                "#FFD700", "#FF4500", "#00CED1", "#ADFF2F",
+                "#FF69B4", "#87CEFA", "#FFA500", "#7B68EE",
+                "#00FF7F", "#FF6347", "#1E90FF", "#32CD32"
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function getUserColor(username) {
+            if (!userColors[username]) {
+                userColors[username] = getRandomColor();
+            }
+            return userColors[username];
+        }
+
+        async function getLiveVideoId(channelId, apiKey) {
+            let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKey}`;
+            let res = await fetch(url);
+            let data = await res.json();
+            return data.items[0]?.id?.videoId || null;
+        }
+
+        async function getLiveChatId(videoId, apiKey) {
+            let url = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${apiKey}`;
+            let res = await fetch(url);
+            let data = await res.json();
+            return data.items[0]?.liveStreamingDetails?.activeLiveChatId || null;
+        }
+
+        async function fetchMessages() {
+            let res = await fetch(`https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId=${liveChatId}&part=snippet,authorDetails&key=${API_KEY}`);
+            let data = await res.json();
+            let chatBox = document.getElementById("chat");
+
+            if (!data.items) return;
+            data.items.forEach(item => {
+                let div = document.createElement("div");
+                div.className = "message";
+                let color = getUserColor(item.authorDetails.displayName);
+                div.innerHTML = `<span class="author" style="color:${color}">${item.authorDetails.displayName}:</span> ${item.snippet.displayMessage}`;
+                chatBox.appendChild(div);
+
+                // Limit to last 20 messages
+                if (chatBox.children.length > 20) {
+                    chatBox.removeChild(chatBox.firstChild);
+                }
+
+                // Auto-scroll down
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+
+            setTimeout(fetchMessages, 3000);
+        }
+
+        async function init() {
+            document.getElementById("chat").innerHTML = "Searching for live stream...";
+            let videoId = await getLiveVideoId(CHANNEL_ID, API_KEY);
+            if (!videoId) {
+                document.getElementById("chat").innerHTML = "No live stream found.";
+                return;
+            }
+            liveChatId = await getLiveChatId(videoId, API_KEY);
+            if (!liveChatId) {
+                document.getElementById("chat").innerHTML = "No live chat found.";
+                return;
+            }
+            document.getElementById("chat").innerHTML = "";
+            fetchMessages();
+        }
+
+        init();
+    </script>
+</body>
+</html>
