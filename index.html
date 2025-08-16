@@ -18,7 +18,7 @@
       padding: 0;
     }
     main {
-      max-width: 960px;
+      max-width: 1200px;
       margin: 2rem auto;
       padding: 1rem;
       background: rgba(31, 41, 55, 0.85);
@@ -41,7 +41,6 @@
       border-radius: 16px;
       overflow: hidden;
       background-color: black;
-      margin: 0 auto 2rem auto;
       border: 2px solid #6366f1;
       max-width: 100%;
     }
@@ -59,69 +58,33 @@
       flex-direction: column;
       gap: 2rem;
     }
+    .chat-container {
+      width: 100%;
+      height: 520px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+      border: 2px solid #6366f1;
+    }
+    .chat-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
     @media(min-width: 768px) {
       .content-wrapper {
         flex-direction: row;
         align-items: flex-start;
+        gap: 1.5rem;
       }
       .video-container {
+        flex: 2;
         max-width: 70%;
-        margin: 0;
       }
       .chat-container {
+        flex: 1;
         max-width: 30%;
-        height: 520px;
-        display: flex;
-        flex-direction: column;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
-        padding: 1rem;
-        color: #e0e7ff;
-      }
-      #chatWindow {
-        flex: 1;
-        overflow-y: auto;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        background: rgba(31, 41, 55, 0.6);
-        padding: 0.75rem 1rem;
-        font-size: 0.9rem;
-        color: #e0e7ff;
-      }
-      .chat-input-group {
-        margin-top: 1rem;
-        display: flex;
-        gap: 0.75rem;
-      }
-      .chat-input-group input {
-        flex: 1;
-        border-radius: 12px;
-        border: 1px solid #6366f1;
-        padding: 0.5rem 1rem;
-        font-size: 1rem;
-        background: rgba(255, 255, 255, 0.1);
-        color: #e0e7ff;
-        outline: none;
-        transition: background-color 0.3s ease;
-      }
-      .chat-input-group input:focus {
-        background: rgba(255, 255, 255, 0.2);
-        border-color: #a5b4fc;
-      }
-      .chat-input-group button {
-        background-color: #6366f1;
-        color: white;
-        border-radius: 12px;
-        padding: 0.5rem 1.25rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6);
-      }
-      .chat-input-group button:hover {
-        background-color: #4f46e5;
-        box-shadow: 0 6px 16px rgba(79, 70, 229, 0.8);
+        min-width: 350px;
       }
     }
     h3 {
@@ -137,6 +100,8 @@
       text-shadow: 0 0 4px #818cf8;
     }
   </style>
+  <!-- Google Fonts for customization -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Roboto&display=swap" rel="stylesheet">
 </head>
 <body>
   <main>
@@ -146,49 +111,32 @@
       <div class="video-container" id="videoArea">
         <iframe src="https://www.youtube.com/embed/BYrxa8548A4?autoplay=1&mute=1&si=7Q22kgfwYE6RZmeR" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
-      <div class="chat-container" aria-label="Live chat">
-        <h3>Live Chat</h3>
-        <div id="chatWindow" aria-live="polite" aria-relevant="additions"></div>
-        <div class="chat-input-group">
-          <input id="chatInput" type="text" placeholder="Type a message..." aria-label="Chat message input" />
-          <button onclick="sendChat()" aria-label="Send chat message">Send</button>
-        </div>
+      
+      <div class="chat-container">
+        <iframe 
+          id="chatFrame"
+          src="chat-overlay.html" 
+          allowfullscreen>
+        </iframe>
       </div>
     </div>
   </main>
 
-<script>
-  // Dayjs setup
-  dayjs.extend(window.dayjs_plugin_relativeTime);
-  dayjs.extend(window.dayjs_plugin_duration);
+  <script>
+    // Dayjs setup
+    dayjs.extend(window.dayjs_plugin_relativeTime);
+    dayjs.extend(window.dayjs_plugin_duration);
 
-  // DOM
-  const chatWindow = document.getElementById('chatWindow');
-  const chatInput = document.getElementById('chatInput');
-  const dateTimeDisplay = document.getElementById('dateTimeDisplay');
+    // DOM
+    const dateTimeDisplay = document.getElementById('dateTimeDisplay');
 
-  // Update date and time display every second
-  function updateDateTime() {
-    const now = dayjs();
-    dateTimeDisplay.textContent = now.format('dddd, MMMM D, YYYY h:mm:ss A');
-  }
-  setInterval(updateDateTime, 1000);
-  updateDateTime();
-
-  // Chat
-  function sendChat(){
-    const v = chatInput.value.trim();
-    if(!v) return;
-    const p = document.createElement('div');
-    p.className='mb-2';
-    const now = new Date();
-    const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-    p.innerHTML = `<span class='font-semibold'>Viewer:</span> ${escapeHtml(v)} <span class='text-xs text-gray-300 ml-2'>${time}</span>`;
-    chatWindow.appendChild(p);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-    chatInput.value='';
-  }
-  function escapeHtml(s){ return s.replaceAll('&','&amp;').replaceAll('<','<').replaceAll('>','>'); }
-</script>
+    // Update date and time display every second
+    function updateDateTime() {
+      const now = dayjs();
+      dateTimeDisplay.textContent = now.format('dddd, MMMM D, YYYY h:mm:ss A');
+    }
+    setInterval(updateDateTime, 1000);
+    updateDateTime();
+  </script>
 </body>
 </html>
