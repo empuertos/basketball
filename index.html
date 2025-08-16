@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>Basketball Live Stream - YouTube Chat</title>
+  <title>Basketball Live Stream</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -21,21 +21,6 @@
       background: rgba(31, 41, 55, 0.85);
       border-radius: 16px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-    }
-    .title {
-      text-align: center;
-      margin-bottom: 1.5rem;
-      font-size: 2rem;
-      font-weight: 700;
-      color: #a5b4fc;
-      text-shadow: 0 0 8px #6366f1;
-    }
-    .date-time {
-      text-align: center;
-      margin-bottom: 1rem;
-      font-size: 1rem;
-      font-weight: 600;
-      color: #c7d2fe;
     }
     .content-wrapper {
       display: flex;
@@ -62,7 +47,7 @@
     }
     .chat-container {
       width: 100%;
-      height: 520px; /* Same height as video container */
+      height: 520px;
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
@@ -91,24 +76,24 @@
 </head>
 <body>
   <div class="container">
-    <h1 class="title">Basketball Live Stream - YouTube Chat</h1>
-    <div class="date-time" id="dateTimeDisplay"></div>
-    
+    <div class="date-time" id="dateTimeDisplay" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; color: white; font-size: 14px; z-index: 1000;"></div>
     <div class="content-wrapper">
       <div class="video-container">
         <iframe 
-    width="100%" 
-    height="500" 
-    src="https://www.youtube.com/embed/live_stream?channel=UCnf8Ejd3y2RboWNcOqHS24A" 
-    frameborder="0" 
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-    allowfullscreen>
-</iframe>
+          id="videoFrame"
+          width="100%" 
+          height="500" 
+          src="https://www.youtube.com/embed/live_stream?channel=UCnf8Ejd3y2RboWNcOqHS24A" 
+          frameborder="0" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+          allowfullscreen>
+        </iframe>
       </div>
       
       <div class="chat-container">
         <iframe 
-          src="https://www.youtube.com/live_chat?v=BYrxa8548A4&embed_domain=" 
+          id="chatFrame"
+          src="https://www.youtube.com/live_chat?channel=UCnf8Ejd3y2RboWNcOqHS24A&embed_domain=" 
           allowfullscreen>
         </iframe>
       </div>
@@ -116,6 +101,10 @@
   </div>
 
   <script>
+    // Set embed domain for YouTube chat
+    const currentDomain = window.location.hostname;
+    const channelId = 'UCnf8Ejd3y2RboWNcOqHS24A'; // Change this to your desired channel
+    
     // Update date and time
     function updateDateTime() {
       const now = new Date();
@@ -123,11 +112,29 @@
     }
     setInterval(updateDateTime, 1000);
     updateDateTime();
-
-    // Set embed domain for YouTube chat
-    const chatIframe = document.querySelector('.chat-container iframe');
-    const currentDomain = window.location.hostname;
-    chatIframe.src = `https://www.youtube.com/live_chat?v=BYrxa8548A4&embed_domain=${currentDomain}`;
+    
+    // Initialize both video and chat with the same channel
+    document.getElementById('videoFrame').src = `https://www.youtube.com/embed/live_stream?channel=${channelId}`;
+    document.getElementById('chatFrame').src = `https://www.youtube.com/live_chat?channel=${channelId}&embed_domain=${currentDomain}`;
+    
+    // Function to update both video and chat when channel changes
+    function updateChannel(newChannelId) {
+      document.getElementById('videoFrame').src = `https://www.youtube.com/embed/live_stream?channel=${newChannelId}`;
+      document.getElementById('chatFrame').src = `https://www.youtube.com/live_chat?channel=${newChannelId}&embed_domain=${currentDomain}`;
+    }
+    
+    // Auto-refresh every 30 seconds to maintain sync
+    setInterval(() => {
+      const videoFrame = document.getElementById('videoFrame');
+      const chatFrame = document.getElementById('chatFrame');
+      
+      // Force refresh by re-setting the src
+      const currentVideoSrc = videoFrame.src;
+      const currentChatSrc = chatFrame.src;
+      
+      videoFrame.src = currentVideoSrc;
+      chatFrame.src = currentChatSrc;
+    }, 30000);
   </script>
 </body>
 </html>
