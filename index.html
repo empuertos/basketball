@@ -93,7 +93,7 @@
       <div class="chat-container">
         <iframe 
           id="chatFrame"
-          src="https://www.youtube.com/live_chat?channel=UCnf8Ejd3y2RboWNcOqHS24A&embed_domain=" 
+          src="chat-overlay.html" 
           allowfullscreen>
         </iframe>
       </div>
@@ -113,27 +113,21 @@
     setInterval(updateDateTime, 1000);
     updateDateTime();
     
-    // Initialize both video and chat with the same channel
+    // Initialize video with the channel
     document.getElementById('videoFrame').src = `https://www.youtube.com/embed/live_stream?channel=${channelId}`;
-    document.getElementById('chatFrame').src = `https://www.youtube.com/live_chat?channel=${channelId}&embed_domain=${currentDomain}`;
     
-    // Function to update both video and chat when channel changes
+    // Function to update video when channel changes
     function updateChannel(newChannelId) {
       document.getElementById('videoFrame').src = `https://www.youtube.com/embed/live_stream?channel=${newChannelId}`;
-      document.getElementById('chatFrame').src = `https://www.youtube.com/live_chat?channel=${newChannelId}&embed_domain=${currentDomain}`;
     }
     
     // Auto-refresh every 30 seconds to maintain sync
     setInterval(() => {
       const videoFrame = document.getElementById('videoFrame');
-      const chatFrame = document.getElementById('chatFrame');
       
       // Force refresh by re-setting the src
       const currentVideoSrc = videoFrame.src;
-      const currentChatSrc = chatFrame.src;
-      
       videoFrame.src = currentVideoSrc;
-      chatFrame.src = currentChatSrc;
     }, 30000);
   </script>
 </body>
